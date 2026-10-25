@@ -46,7 +46,7 @@ function startGame(room) {
   const bc = () => bcast(room);
   const draw = (p, n) => { for (let i = 0; i < n; i++) { if (!G.deck.length) { const l = G.disc.pop(); G.deck = shuf(G.disc); G.disc = l ? [l] : []; } if (G.deck.length) p.hand.push(G.deck.pop()); } };
   const nextOf = () => { const n = ps.length; return ps[((G.cur + G.dir) % n + n) % n]; };
-  const canPlay = c => { const t = G.top; if (c.k === 'nk' || c.k === 'mut') return true; if (c.k === 'def') return false; if (c.type === t.type) return true; return c.k === 'num' ? (t.k === 'num' && c.num === t.num) : c.k === t.k; };
+  const canPlay = (c, p) => { const t = G.top; if (c.k === 'nk' || c.k === 'mut') return true; if (c.k === 'def') return p.mem.includes(c.type); if (c.type === t.type) return true; return c.k === 'num' ? (t.k === 'num' && c.num === t.num) : c.k === t.k; };
   const label = c => c.k === 'num' ? `${c.type}${c.num}` : c.k;
 
   const go = () => { G.drawn = null; bc(); if (isBot(ps[G.cur])) T(botTurn, 1100); };
@@ -77,7 +77,7 @@ function startGame(room) {
     if (c.k === 'num') t.num = c.num;
     if (c.k === 'nk') { t.type = o.type; lg(`${p.name} jogou Célula NK.`); }
     else if (c.k === 'mut') { const n0 = G.top.num; t.type = o.type; t.num = n0 === null ? null : Math.min(9, Math.max(1, n0 + o.delta)); t.k = t.num === null ? 'mut' : 'num'; lg(`${p.name} jogou Mutação.`); }
-    else lg(`${p.name} jogou ${label(c)}.`);
+    else lg(c.k === 'def' ? `${p.name} descartou um defensor (já tem essa memória).` : `${p.name} jogou ${label(c)}.`);
     G.top = t; G.topCard = c;
     if (c.k === 'skip') { lg(`${nextOf().name} perdeu a vez.`); return finish(p, 2); }
     if (c.k === 'rev') { G.dir *= -1; return finish(p, ps.length === 2 ? 2 : 1); }
@@ -92,10 +92,10 @@ function startGame(room) {
     play(p, c, { type, delta });
   };
   const botTurn = () => {
-    const p = ps[G.cur]; const pl = p.hand.filter(canPlay);
-    if (!pl.length) { draw(p, 1); const c = p.hand[p.hand.length - 1]; lg(`${p.name} comprou uma carta.`); if (c && canPlay(c)) { bc(); return T(() => botPlay(p, c), 900); } return finish(p, 1); }
+    const p = ps[G.cur]; const pl = p.hand.filter(c => canPlay(c, p));
+    if (!pl.length) { draw(p, 1); const c = p.hand[p.hand.length - 1]; lg(`${p.name} comprou uma carta.`); if (c && canPlay(c, p)) { bc(); return T(() => botPlay(p, c), 900); } return finish(p, 1); }
     const nx = nextOf().hand.length, cnt = t => p.hand.filter(x => x.type === t).length;
-    const sc = c => (c.k === 'att' ? 50 : (c.k === 'skip' || c.k === 'rev') ? 30 + (nx <= 2 ? 25 : 0) : c.k === 'num' ? 20 + cnt(c.type) : c.k === 'mut' ? 8 : 5) + Math.random() * 6;
+    const sc = c => (c.k === 'att' ? 50 : (c.k === 'skip' || c.k === 'rev') ? 30 + (nx <= 2 ? 25 : 0) : c.k === 'num' ? 20 + cnt(c.type) : c.k === 'mut' ? 8 : c.k === 'def' ? 12 : 5) + Math.random() * 6;
     botPlay(p, pl.map(c => [c, sc(c)]).sort((a, b) => b[1] - a[1])[0][0]);
   };
 
@@ -109,13 +109,13 @@ function startGame(room) {
       if (G.drawn) return 'Você já comprou.';
       draw(p, 1); const c = p.hand[p.hand.length - 1]; if (!c) return 'O monte acabou.';
       lg(`${p.name} comprou uma carta.`); G.drawn = c.id; bc();
-      if (!canPlay(c)) T(() => { if (G.cur === seat && G.drawn === c.id) finish(p, 1); }, 900);
+      if (!canPlay(c, p)) T(() => { if (G.cur === seat && G.drawn === c.id) finish(p, 1); }, 900);
       return;
     }
     if (m.a === 'play') {
       const c = p.hand.find(x => x.id === m.id); if (!c) return 'Carta inválida.';
       if (G.drawn && c.id !== G.drawn) return 'Depois de comprar, só dá para jogar a carta comprada.';
-      if (!canPlay(c)) return 'Essa carta não combina (tipo, número ou símbolo).';
+      if (!canPlay(c, p)) return c.k === 'def' ? 'Esse defensor só serve como reação a uma Epidemia do tipo dele.' : 'Essa carta não combina (tipo, número ou símbolo).';
       let o = null;
       if (c.k === 'nk' || c.k === 'mut') { if (!TY.includes(m.type)) return 'Escolha um tipo.'; o = { type: m.type, delta: m.delta === -1 ? -1 : 1 }; }
       play(p, c, o); return;

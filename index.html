@@ -98,12 +98,12 @@ async function enter(path,b){
 }
 const mk=()=>enter('create',{}),jn=()=>enter('join',{code:$('#cd').value.trim().toUpperCase()});
 async function act(m){const r=await API('act',{code:S.me.code,pid:S.me.pid,...m});if(r.err){S.local=r.err;render()}}
-const canPlay=c=>{const t=S.G.top;if(c.k=='nk'||c.k=='mut')return true;if(c.k=='def')return false;if(c.type==t.type)return true;return c.k=='num'?(t.k=='num'&&c.num===t.num):c.k===t.k};
+const canPlay=c=>{const t=S.G.top;if(c.k=='nk'||c.k=='mut')return true;if(c.k=='def')return S.G.ps[S.G.seat].mem.includes(c.type);if(c.type==t.type)return true;return c.k=='num'?(t.k=='num'&&c.num===t.num):c.k===t.k};
 const myTurn=()=>{const G=S.G;return G&&G.cur==G.seat&&!G.over&&!G.react&&!S.choose};
 function cc(i){
   const G=S.G,c=G.hand[i];if(!myTurn())return;
   if(G.drawn&&c.id!=G.drawn){S.local='Depois de comprar, só dá para jogar a carta comprada.';return render()}
-  if(!canPlay(c)){S.local=c.k=='def'?'Defensores só servem como reação a uma Epidemia.':'Essa carta não combina (tipo, número ou símbolo).';return render()}
+  if(!canPlay(c)){S.local=c.k=='def'?'Esse defensor só serve como reação a uma Epidemia do tipo dele.':'Essa carta não combina (tipo, número ou símbolo).';return render()}
   if(c.k=='nk'||c.k=='mut'){S.choose=c;return render()}
   act({a:'play',id:c.id});
 }
@@ -134,7 +134,7 @@ function gameH(){
 <div class="me ${G.cur==G.seat&&!G.over?'act':''}">${me.av} <b>${esc(me.name)} (você)</b> · 🃏 ${G.hand.length} · Memórias: <span class="slots">${[0,1,2,3].map(i=>`<span class="slot ${me.mem[i]?'on':''}">${me.mem[i]?T[me.mem[i]].i:'🧠'}</span>`).join('')}</span>
 ${G.drawn&&my?'<button class="sec" onclick="pass()">Passar</button>':''}${G.over&&G.host?'<button onclick="act({a:\'again\'})">Nova partida</button>':''}${G.over&&!G.host?' <small>Aguardando o anfitrião…</small>':''}</div>
 <div class="hand">${G.hand.map((c,i)=>cardH(c,my&&canPlay(c)&&(!G.drawn||c.id==G.drawn)?'ok':'dim',`onclick="cc(${i})"`)).join('')}</div>
-<details><summary>Como jogar</summary>Fique sem cartas primeiro. Jogue uma carta do mesmo tipo (🦠🧫🍄🪱), do mesmo número ou o mesmo símbolo da carta de cima; sem jogada, compre 1. 🛡️ Barreira pula o próximo. 🔄 Contágio inverte o sentido. +2 Epidemia: o próximo compra 2 e perde a vez. 🥷 Célula NK escolhe o tipo. 🧬 Mutação escolhe o tipo e muda o número em ±1. Defensor (⚔️🥊🍽️🎯): reação a uma Epidemia do mesmo tipo; anula o ataque e cria uma memória 🧠 que torna você imune àquele tipo. Com 4 memórias, você vence na hora.</details>`}
+<details><summary>Como jogar</summary>Fique sem cartas primeiro. Jogue uma carta do mesmo tipo (🦠🧫🍄🪱), do mesmo número ou o mesmo símbolo da carta de cima; sem jogada, compre 1. 🛡️ Barreira pula o próximo. 🔄 Contágio inverte o sentido. +2 Epidemia: o próximo compra 2 e perde a vez. 🥷 Célula NK escolhe o tipo. 🧬 Mutação escolhe o tipo e muda o número em ±1. Defensor (⚔️🥊🍽️🎯): reação a uma Epidemia do mesmo tipo; anula o ataque e cria uma memória 🧠 que torna você imune àquele tipo. Com 4 memórias, você vence na hora. Se você já tem a memória de um tipo, os outros defensores desse tipo viram cartas livres: jogue quando quiser, só para se livrar deles.</details>`}
 const burst=(o={})=>{if(window.confetti)confetti({particleCount:50,spread:70,origin:{y:.75},colors:['#2ee59d','#f2b400','#4da3ff'],...o})};
 function post(){
   const G=S.G;if(!G)return;
